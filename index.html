@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rento - Flexible Vehicle & Driver Rental</title>
+    <link rel="stylesheet" href="styles/variables.css">
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar" role="navigation" aria-label="Main navigation">
+        <div class="container">
+            <a href="#" class="logo" data-view="home">
+                <i class="fas fa-car"></i>
+                <span>Rento</span>
+            </a>
+            <button class="menu-toggle" aria-label="Toggle navigation menu" aria-expanded="false">
+                <i class="fas fa-bars"></i>
+            </button>
+            <ul class="nav-menu" role="menubar">
+                <li role="none"><a href="#" data-view="home" role="menuitem">Home</a></li>
+                <li role="none"><a href="#" data-view="browse" role="menuitem">Browse Vehicles</a></li>
+                <li role="none"><a href="#" data-view="booking" role="menuitem">Book Now</a></li>
+                <li role="none" class="nav-user-section">
+                    <div class="user-dropdown">
+                        <button class="user-btn" id="user-menu-btn">
+                            <i class="fas fa-user"></i>
+                            <span id="user-name">Guest</span>
+                            <i class="fas fa-chevron-down"></i>
+                        </button>
+                        <div class="dropdown-menu" id="user-menu">
+                            <a href="#" data-view="profile"><i class="fas fa-user-circle"></i> Profile</a>
+                            <a href="#" data-view="bookings"><i class="fas fa-history"></i> Bookings</a>
+                            <div class="dropdown-divider"></div>
+                            <a href="#" id="login-btn"><i class="fas fa-sign-in-alt"></i> Login</a>
+                            <a href="#" id="signup-btn"><i class="fas fa-user-plus"></i> Sign Up</a>
+                            <a href="#" id="logout-btn" style="display: none;"><i class="fas fa-sign-out-alt"></i> Logout</a>
+                        </div>
+                    </div>
+                </li>
+                <li role="none" id="admin-nav-item" style="display: none;">
+                    <a href="#" data-view="admin" role="menuitem">
+                        <i class="fas fa-cog"></i> Admin
+                    </a>
+                </li>
+                <li role="none" id="driver-nav-item" style="display: none;">
+                    <a href="#" data-view="driver" role="menuitem">
+                        <i class="fas fa-id-card"></i> Driver
+                    </a>
+                </li>
+            </ul>
+        </div>
+    </nav>
+
+    <!-- Main Content Area -->
+    <main id="app-content" class="container">
+        <!-- Views will be dynamically loaded here -->
+    </main>
+
+    <!-- Notification Toast -->
+    <div id="notification-toast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+        <div class="toast-content">
+            <span id="toast-message"></span>
+            <button class="toast-close" aria-label="Close notification">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- Vehicle Detail Modal -->
+    <div id="vehicle-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title" aria-describedby="modal-description">
+        <div class="modal-content">
+            <button class="modal-close" aria-label="Close modal">
+                <i class="fas fa-times"></i>
+            </button>
+            <div id="modal-body"></div>
+        </div>
+    </div>
+
+    <!-- Login/Signup Modal -->
+    <div id="auth-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="auth-modal-title">
+        <div class="modal-content auth-modal-content">
+            <button class="modal-close" onclick="UIManager.closeAuthModal()" aria-label="Close modal">
+                <i class="fas fa-times"></i>
+            </button>
+            <div id="auth-modal-body"></div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-section">
+                    <h3>Rento</h3>
+                    <p>Flexible Vehicle & Driver Rental Service</p>
+                </div>
+                <div class="footer-section">
+                    <h4>Quick Links</h4>
+                    <a href="#" data-view="home">Home</a>
+                    <a href="#" data-view="browse">Browse Vehicles</a>
+                    <a href="#" data-view="booking">Book Now</a>
+                </div>
+                <div class="footer-section">
+                    <h4>Contact</h4>
+                    <p><i class="fas fa-envelope"></i> support@rento.com</p>
+                    <p><i class="fas fa-phone"></i> +880 1234 567890</p>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; <span id="current-year">2024</span> Rento. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Scripts -->
+    <script src="js/data.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/booking.js"></script>
+    <script src="js/admin.js"></script>
+    <script src="js/driver.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
