@@ -12,6 +12,8 @@ class UIManager {
     
     init() {
         this.bindEvents();
+        this.initAuthEvents();
+        this.updateUserInterface();
         this.renderView('home');
     }
     
@@ -28,6 +30,10 @@ class UIManager {
                 // Close mobile menu if open
                 const navMenu = document.querySelector('.nav-menu');
                 navMenu.classList.remove('active');
+                
+                // Close dropdown menu
+                const userMenu = document.getElementById('user-menu');
+                if (userMenu) userMenu.classList.remove('show');
             }
             
             // Menu toggle
@@ -38,8 +44,10 @@ class UIManager {
             
             // Modal close
             if (e.target.closest('.modal-close') || 
-                (e.target.id === 'vehicle-modal' && !e.target.closest('.modal-content'))) {
+                (e.target.id === 'vehicle-modal' && !e.target.closest('.modal-content')) ||
+                (e.target.id === 'auth-modal' && !e.target.closest('.modal-content'))) {
                 this.closeModal();
+                this.closeAuthModal();
             }
             
             // Toast close
@@ -60,6 +68,84 @@ class UIManager {
                 }
             }
         });
+    }
+    
+    initAuthEvents() {
+        // User menu toggle
+        const userMenuBtn = document.getElementById('user-menu-btn');
+        const userMenu = document.getElementById('user-menu');
+        
+        if (userMenuBtn) {
+            userMenuBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                userMenu.classList.toggle('show');
+            });
+            
+            // Close menu when clicking outside
+            document.addEventListener('click', (e) => {
+                if (!e.target.closest('.user-dropdown')) {
+                    userMenu.classList.remove('show');
+                }
+            });
+        }
+        
+        // Auth buttons
+        document.addEventListener('click', (e) => {
+            if (e.target.id === 'login-btn' || e.target.closest('#login-btn')) {
+                e.preventDefault();
+                this.showLoginModal();
+            }
+            
+            if (e.target.id === 'signup-btn' || e.target.closest('#signup-btn')) {
+                e.preventDefault();
+                this.showSignupModal();
+            }
+            
+            if (e.target.id === 'logout-btn' || e.target.closest('#logout-btn')) {
+                e.preventDefault();
+                this.handleLogout();
+            }
+        });
+    }
+    
+    updateUserInterface() {
+        const user = DataManager.getCurrentUser();
+        const userName = document.getElementById('user-name');
+        const loginBtn = document.getElementById('login-btn');
+        const signupBtn = document.getElementById('signup-btn');
+        const logoutBtn = document.getElementById('logout-btn');
+        const adminNav = document.getElementById('admin-nav-item');
+        const driverNav = document.getElementById('driver-nav-item');
+        
+        if (user) {
+            // User is logged in
+            userName.textContent = user.name.split(' ')[0]; // First name only
+            loginBtn.style.display = 'none';
+            signupBtn.style.display = 'none';
+            logoutBtn.style.display = 'block';
+            
+            // Show admin nav if user is admin
+            if (DataManager.isAdmin()) {
+                adminNav.style.display = 'block';
+            } else {
+                adminNav.style.display = 'none';
+            }
+            
+            // Show driver nav if user is driver
+            if (DataManager.isDriver()) {
+                driverNav.style.display = 'block';
+            } else {
+                driverNav.style.display = 'none';
+            }
+        } else {
+            // User is not logged in
+            userName.textContent = 'Guest';
+            loginBtn.style.display = 'block';
+            signupBtn.style.display = 'block';
+            logoutBtn.style.display = 'none';
+            adminNav.style.display = 'none';
+            driverNav.style.display = 'none';
+        }
     }
     
     renderView(view) {
@@ -90,6 +176,10 @@ class UIManager {
                 contentArea.innerHTML = this.renderDriverView();
                 this.renderDriverAssignments();
                 break;
+            case 'bookings':
+                contentArea.innerHTML = this.renderBookingsView();
+                this.renderUserBookings();
+                break;
             default:
                 contentArea.innerHTML = this.renderHomeView();
         }
@@ -105,13 +195,51 @@ class UIManager {
     }
     
     renderHomeView() {
+        const user = DataManager.getCurrentUser();
+        
         return `
             <section class="home-view view">
                 <div class="hero">
                     <h1>Flexible Vehicle & Driver Rental</h1>
                     <p>Experience the freedom of flexible mobility with our hub-to-hub rental service. Choose from EVs, traditional vehicles, or add a driver for complete convenience.</p>
-                    <button class="btn" data-view="booking">Book Now</button>
-                    <button class="btn btn-secondary" data-view="browse">Browse Vehicles</button>
+                    ${!user ? `
+                        <div class="hero-buttons">
+                            <button class="btn" data-view="booking">Book Now</button>
+                            <button class="btn btn-outline" onclick="UIManager.showSignupModal()">
+                                Get Started Free
+                            </button>
+                        </div>
+                    ` : `
+                        <div class="hero-buttons">
+                            <button class="btn" data-view="booking">Book Now</button>
+                            <button class="btn btn-outline" data-view="profile">
+                                View Dashboard
+                            </button>
+                        </div>
+                    `}
+                </div>
+                
+                <div class="stats-section">
+                    <div class="stat-card">
+                        <div class="stat-number">${DataManager.getVehicles().length}+</div>
+                        <h3>Vehicles</h3>
+                        <p>Available for rent</p>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">${DataManager.getHubs().length}</div>
+                        <h3>Hubs</h3>
+                        <p>Across the city</p>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">${DataManager.getAvailableDrivers().length}</div>
+                        <h3>Drivers</h3>
+                        <p>Ready to serve</p>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">24/7</div>
+                        <h3>Support</h3>
+                        <p>Customer service</p>
+                    </div>
                 </div>
                 
                 <div class="features">
@@ -132,11 +260,15 @@ class UIManager {
                     </div>
                 </div>
                 
-                <div class="cta-section text-center mt-4">
-                    <h2>Ready to Ride?</h2>
-                    <p class="mb-3">Join thousands of satisfied customers who choose Rento for their mobility needs.</p>
-                    <button class="btn" data-view="booking">Start Your Booking</button>
-                </div>
+                ${!user ? `
+                    <div class="cta-section text-center mt-4">
+                        <h2>Ready to Ride?</h2>
+                        <p class="mb-3">Create an account to start booking vehicles and manage your rentals.</p>
+                        <button class="btn" onclick="UIManager.showSignupModal()">
+                            Create Free Account
+                        </button>
+                    </div>
+                ` : ''}
             </section>
         `;
     }
@@ -349,6 +481,23 @@ class UIManager {
     }
     
     renderBookingView() {
+        const user = DataManager.getCurrentUser();
+        
+        if (!user) {
+            return `
+                <section class="booking-view view">
+                    <h1>Book Your Ride</h1>
+                    <div class="alert">
+                        <p>Please login or sign up to make a booking.</p>
+                        <div class="auth-buttons">
+                            <button class="btn" onclick="UIManager.showLoginModal()">Login</button>
+                            <button class="btn btn-secondary" onclick="UIManager.showSignupModal()">Sign Up</button>
+                        </div>
+                    </div>
+                </section>
+            `;
+        }
+        
         const vehicles = DataManager.getVehicles();
         const hubs = DataManager.getHubs();
         
@@ -446,7 +595,7 @@ class UIManager {
                             <label for="user-age" class="form-label">Your Age</label>
                             <input type="number" id="user-age" class="form-control" 
                                    min="16" max="100" required 
-                                   placeholder="Enter your age">
+                                   placeholder="Enter your age" value="${user.age}">
                             <small class="form-text">Age verification is required for all bookings</small>
                         </div>
                         
@@ -495,8 +644,11 @@ class UIManager {
         
         // Initialize with current date
         const today = new Date().toISOString().split('T')[0];
-        document.getElementById('pickup-date').min = today;
-        document.getElementById('dropoff-date').min = today;
+        const pickupDate = document.getElementById('pickup-date');
+        const dropoffDate = document.getElementById('dropoff-date');
+        
+        if (pickupDate) pickupDate.min = today;
+        if (dropoffDate) dropoffDate.min = today;
         
         // Update price summary on changes
         const updateFields = [
@@ -520,21 +672,32 @@ class UIManager {
         
         // Age validation
         const ageInput = document.getElementById('user-age');
-        ageInput.addEventListener('input', (e) => this.handleAgeChange(e.target.value));
+        if (ageInput) {
+            ageInput.addEventListener('input', (e) => this.handleAgeChange(e.target.value));
+        }
         
         // Driver toggle
         const driverToggle = document.getElementById('driver-toggle');
-        driverToggle.addEventListener('change', (e) => this.handleDriverToggle(e.target.checked));
+        if (driverToggle) {
+            driverToggle.addEventListener('change', (e) => this.handleDriverToggle(e.target.checked));
+        }
         
         // Vehicle change - update available hubs
         const vehicleSelect = document.getElementById('vehicle-select');
-        vehicleSelect.addEventListener('change', (e) => this.updateAvailableHubs(e.target.value));
+        if (vehicleSelect) {
+            vehicleSelect.addEventListener('change', (e) => this.updateAvailableHubs(e.target.value));
+        }
         
         // Form submission
         form.addEventListener('submit', (e) => this.handleBookingSubmit(e));
         
         // Initial price update
         this.updatePriceSummary();
+        
+        // Initial age check
+        if (ageInput && ageInput.value) {
+            this.handleAgeChange(ageInput.value);
+        }
     }
     
     handleAgeChange(age) {
@@ -543,40 +706,48 @@ class UIManager {
         const driverToggle = document.getElementById('driver-toggle');
         
         if (age && parseInt(age) < 18) {
-            ageWarning.classList.remove('hidden');
+            if (ageWarning) ageWarning.classList.remove('hidden');
             
             // Enforce EV + driver requirement
-            driverToggle.checked = true;
-            driverToggle.dispatchEvent(new Event('change'));
-            driverToggle.disabled = true;
+            if (driverToggle) {
+                driverToggle.checked = true;
+                driverToggle.dispatchEvent(new Event('change'));
+                driverToggle.disabled = true;
+            }
             
             // Filter vehicles to show only EVs
-            const vehicles = DataManager.getVehicles();
-            const evVehicles = vehicles.filter(v => v.fuelType === 'EV');
-            
-            // Update vehicle select options
-            vehicleSelect.innerHTML = `
-                <option value="">Choose an EV...</option>
-                ${evVehicles.map(vehicle => 
-                    `<option value="${vehicle.id}">${vehicle.name} (EV) - $${vehicle.pricePerHour}/hour</option>`
-                ).join('')}
-            `;
+            if (vehicleSelect) {
+                const vehicles = DataManager.getVehicles();
+                const evVehicles = vehicles.filter(v => v.fuelType === 'EV');
+                
+                // Update vehicle select options
+                vehicleSelect.innerHTML = `
+                    <option value="">Choose an EV...</option>
+                    ${evVehicles.map(vehicle => 
+                        `<option value="${vehicle.id}">${vehicle.name} (EV) - $${vehicle.pricePerHour}/hour</option>`
+                    ).join('')}
+                `;
+            }
             
             this.showToast('Under 18 booking: EV and driver are required for safety and legal compliance.', 'warning');
         } else {
-            ageWarning.classList.add('hidden');
+            if (ageWarning) ageWarning.classList.add('hidden');
             
             // Re-enable driver toggle
-            driverToggle.disabled = false;
+            if (driverToggle) {
+                driverToggle.disabled = false;
+            }
             
-            // Reset vehicle options
-            const vehicles = DataManager.getVehicles();
-            vehicleSelect.innerHTML = `
-                <option value="">Choose a vehicle...</option>
-                ${vehicles.map(vehicle => 
-                    `<option value="${vehicle.id}">${vehicle.name} (${vehicle.fuelType}) - $${vehicle.pricePerHour}/hour</option>`
-                ).join('')}
-            `;
+            // Reset vehicle options if needed
+            if (vehicleSelect && vehicleSelect.options.length <= 1) {
+                const vehicles = DataManager.getVehicles();
+                vehicleSelect.innerHTML = `
+                    <option value="">Choose a vehicle...</option>
+                    ${vehicles.map(vehicle => 
+                        `<option value="${vehicle.id}">${vehicle.name} (${vehicle.fuelType}) - $${vehicle.pricePerHour}/hour</option>`
+                    ).join('')}
+                `;
+            }
         }
         
         this.updatePriceSummary();
@@ -588,14 +759,14 @@ class UIManager {
         const driverSelect = document.getElementById('driver-select');
         
         if (hasDriver) {
-            driverOptions.classList.remove('hidden');
-            driverStatus.textContent = 'Yes';
+            if (driverOptions) driverOptions.classList.remove('hidden');
+            if (driverStatus) driverStatus.textContent = 'Yes';
             
             // Load available drivers
             const vehicleSelect = document.getElementById('vehicle-select');
-            const vehicle = DataManager.getVehicleById(vehicleSelect.value);
+            const vehicle = vehicleSelect ? DataManager.getVehicleById(vehicleSelect.value) : null;
             
-            if (vehicle) {
+            if (vehicle && driverSelect) {
                 const drivers = DataManager.getAvailableDrivers(vehicle.type);
                 driverSelect.innerHTML = `
                     <option value="">Choose a driver...</option>
@@ -607,9 +778,9 @@ class UIManager {
                 `;
             }
         } else {
-            driverOptions.classList.add('hidden');
-            driverStatus.textContent = 'No';
-            driverSelect.innerHTML = '<option value="">Choose a driver...</option>';
+            if (driverOptions) driverOptions.classList.add('hidden');
+            if (driverStatus) driverStatus.textContent = 'No';
+            if (driverSelect) driverSelect.innerHTML = '<option value="">Choose a driver...</option>';
         }
         
         this.updatePriceSummary();
@@ -624,15 +795,17 @@ class UIManager {
         
         // Filter options to show only hubs where vehicle is available
         [pickupSelect, dropoffSelect].forEach(select => {
-            Array.from(select.options).forEach(option => {
-                if (option.value) {
-                    const isAvailable = vehicle.hubs.includes(parseInt(option.value));
-                    option.disabled = !isAvailable;
-                    if (select.value === option.value && !isAvailable) {
-                        select.value = '';
+            if (select) {
+                Array.from(select.options).forEach(option => {
+                    if (option.value) {
+                        const isAvailable = vehicle.hubs.includes(parseInt(option.value));
+                        option.disabled = !isAvailable;
+                        if (select.value === option.value && !isAvailable) {
+                            select.value = '';
+                        }
                     }
-                }
-            });
+                });
+            }
         });
         
         this.updatePriceSummary();
@@ -671,10 +844,12 @@ class UIManager {
             // Driver cost
             if (hasDriver && driverId) {
                 const driverSelect = document.getElementById('driver-select');
-                const selectedOption = driverSelect.querySelector(`option[value="${driverId}"]`);
-                if (selectedOption) {
-                    const hourlyRate = parseFloat(selectedOption.dataset.rate);
-                    driverCost = hourlyRate * durationHours;
+                if (driverSelect) {
+                    const selectedOption = driverSelect.querySelector(`option[value="${driverId}"]`);
+                    if (selectedOption) {
+                        const hourlyRate = parseFloat(selectedOption.dataset.rate);
+                        driverCost = hourlyRate * durationHours;
+                    }
                 }
             }
             
@@ -693,10 +868,15 @@ class UIManager {
         total = rentalCost + driverCost + hubFees;
         
         // Update display
-        document.getElementById('vehicle-price').textContent = `$${rentalCost.toFixed(2)}`;
-        document.getElementById('driver-price').textContent = `$${driverCost.toFixed(2)}`;
-        document.getElementById('hub-fees').textContent = `$${hubFees.toFixed(2)}`;
-        document.getElementById('total-price').textContent = `$${total.toFixed(2)}`;
+        const vehiclePrice = document.getElementById('vehicle-price');
+        const driverPrice = document.getElementById('driver-price');
+        const hubFeesElement = document.getElementById('hub-fees');
+        const totalPrice = document.getElementById('total-price');
+        
+        if (vehiclePrice) vehiclePrice.textContent = `$${rentalCost.toFixed(2)}`;
+        if (driverPrice) driverPrice.textContent = `$${driverCost.toFixed(2)}`;
+        if (hubFeesElement) hubFeesElement.textContent = `$${hubFees.toFixed(2)}`;
+        if (totalPrice) totalPrice.textContent = `$${total.toFixed(2)}`;
     }
     
     async handleBookingSubmit(e) {
@@ -768,6 +948,8 @@ class UIManager {
                     <h2>Your Information</h2>
                     <p><strong>Email:</strong> ${user.email}</p>
                     <p><strong>Age:</strong> ${user.age} years</p>
+                    <p><strong>Account Type:</strong> <span class="role-badge ${user.role}">${user.role}</span></p>
+                    <p><strong>Member Since:</strong> ${new Date(user.createdAt).toLocaleDateString()}</p>
                 </div>
                 
                 <div class="booking-history">
@@ -775,6 +957,30 @@ class UIManager {
                     <div id="bookings-list">
                         <!-- Bookings will be loaded here -->
                     </div>
+                </div>
+            </section>
+        `;
+    }
+    
+    renderBookingsView() {
+        const user = DataManager.getCurrentUser();
+        if (!user) {
+            return `
+                <section class="bookings-view view">
+                    <h1>My Bookings</h1>
+                    <div class="alert">
+                        <p>Please log in to view your bookings.</p>
+                        <button class="btn" onclick="UIManager.showLoginModal()">Log In</button>
+                    </div>
+                </section>
+            `;
+        }
+        
+        return `
+            <section class="bookings-view view">
+                <h1>My Bookings</h1>
+                <div id="bookings-list">
+                    <!-- Bookings will be loaded here -->
                 </div>
             </section>
         `;
@@ -802,10 +1008,10 @@ class UIManager {
                 DataManager.getData(DataManager.STORAGE_KEYS.DRIVERS).find(d => d.id === booking.driverId) : null;
             
             return `
-                <div class="booking-card card ${booking.status}">
+                <div class="booking-card card ${booking.status} mb-3">
                     <div class="booking-header">
                         <h3>${vehicle?.name || 'Unknown Vehicle'}</h3>
-                        <span class="booking-status">${booking.status}</span>
+                        <span class="booking-status status ${booking.status}">${booking.status}</span>
                     </div>
                     <div class="booking-details">
                         <p><strong>Booking ID:</strong> ${booking.id}</p>
@@ -840,15 +1046,58 @@ class UIManager {
     }
     
     renderAdminView() {
+        const user = DataManager.getCurrentUser();
+        
+        if (!DataManager.isAdmin()) {
+            return `
+                <section class="admin-view view">
+                    <h1>Admin Dashboard</h1>
+                    <div class="alert error">
+                        <p>Access denied. Admin privileges required.</p>
+                    </div>
+                </section>
+            `;
+        }
+        
+        const vehicles = DataManager.getVehicles();
+        const hubs = DataManager.getHubs();
+        const drivers = DataManager.getData(DataManager.STORAGE_KEYS.DRIVERS) || [];
+        const bookings = DataManager.getBookings();
+        
         return `
             <section class="admin-view view">
                 <h1>Admin Dashboard</h1>
+                <p>Welcome, ${user.name}. Manage your rental system here.</p>
+                
+                <div class="admin-stats">
+                    <div class="admin-stat-card">
+                        <i class="fas fa-car"></i>
+                        <h3>${vehicles.length}</h3>
+                        <p>Total Vehicles</p>
+                    </div>
+                    <div class="admin-stat-card">
+                        <i class="fas fa-map-marker-alt"></i>
+                        <h3>${hubs.length}</h3>
+                        <p>Hubs</p>
+                    </div>
+                    <div class="admin-stat-card">
+                        <i class="fas fa-user-tie"></i>
+                        <h3>${drivers.length}</h3>
+                        <p>Drivers</p>
+                    </div>
+                    <div class="admin-stat-card">
+                        <i class="fas fa-calendar-check"></i>
+                        <h3>${bookings.length}</h3>
+                        <p>Total Bookings</p>
+                    </div>
+                </div>
                 
                 <div class="admin-tabs">
                     <button class="tab-btn active" data-tab="hubs">Hubs</button>
                     <button class="tab-btn" data-tab="vehicles">Vehicles</button>
                     <button class="tab-btn" data-tab="drivers">Drivers</button>
                     <button class="tab-btn" data-tab="bookings">Bookings</button>
+                    <button class="tab-btn" data-tab="users">Users</button>
                 </div>
                 
                 <div class="tab-content">
@@ -886,6 +1135,13 @@ class UIManager {
                         <h2>All Bookings</h2>
                         <div id="all-bookings-list"></div>
                     </div>
+                    
+                    <div id="users-tab" class="tab-pane">
+                        <div class="admin-header">
+                            <h2>Manage Users</h2>
+                        </div>
+                        <div id="users-list"></div>
+                    </div>
                 </div>
                 
                 <!-- Forms will be loaded here dynamically -->
@@ -908,7 +1164,8 @@ class UIManager {
                 
                 // Show corresponding tab pane
                 tabPanes.forEach(pane => pane.classList.remove('active'));
-                document.getElementById(`${tab}-tab`).classList.add('active');
+                const targetPane = document.getElementById(`${tab}-tab`);
+                if (targetPane) targetPane.classList.add('active');
                 
                 // Load tab data
                 this.loadAdminTabData(tab);
@@ -932,6 +1189,9 @@ class UIManager {
                 break;
             case 'bookings':
                 this.renderAllBookings();
+                break;
+            case 'users':
+                this.renderUsersList();
                 break;
         }
     }
@@ -1130,6 +1390,49 @@ class UIManager {
                                 </tr>
                             `;
                         }).join('')}
+                    </tbody>
+                </table>
+            </div>
+        `;
+    }
+    
+    renderUsersList() {
+        const users = DataManager.getData(DataManager.STORAGE_KEYS.USERS) || [];
+        const container = document.getElementById('users-list');
+        
+        if (!container) return;
+        
+        if (users.length === 0) {
+            container.innerHTML = '<p>No users found.</p>';
+            return;
+        }
+        
+        container.innerHTML = `
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Name</th>
+                            <th>Email</th>
+                            <th>Age</th>
+                            <th>Role</th>
+                            <th>Joined</th>
+                            <th>Bookings</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${users.map(user => `
+                            <tr>
+                                <td>${user.id}</td>
+                                <td>${user.name}</td>
+                                <td>${user.email}</td>
+                                <td>${user.age}</td>
+                                <td><span class="role-badge ${user.role}">${user.role}</span></td>
+                                <td>${new Date(user.createdAt).toLocaleDateString()}</td>
+                                <td>${user.bookings?.length || 0}</td>
+                            </tr>
+                        `).join('')}
                     </tbody>
                 </table>
             </div>
@@ -1475,10 +1778,14 @@ class UIManager {
         `;
         
         // Update availability status text
-        document.getElementById('driver-available').addEventListener('change', function() {
-            document.getElementById('available-status').textContent = 
-                this.checked ? 'Available' : 'Busy';
-        });
+        const availableCheckbox = document.getElementById('driver-available');
+        const availableStatus = document.getElementById('available-status');
+        
+        if (availableCheckbox && availableStatus) {
+            availableCheckbox.addEventListener('change', function() {
+                availableStatus.textContent = this.checked ? 'Available' : 'Busy';
+            });
+        }
         
         document.getElementById('driver-form').addEventListener('submit', (e) => {
             e.preventDefault();
@@ -1539,12 +1846,26 @@ class UIManager {
     }
     
     renderDriverView() {
+        const user = DataManager.getCurrentUser();
+        
+        if (!user) {
+            return `
+                <section class="driver-view view">
+                    <h1>Driver Dashboard</h1>
+                    <div class="alert">
+                        <p>Please log in to access driver dashboard.</p>
+                        <button class="btn" onclick="UIManager.showLoginModal()">Log In</button>
+                    </div>
+                </section>
+            `;
+        }
+        
         return `
             <section class="driver-view view">
                 <h1>Driver Dashboard</h1>
                 
                 <div class="driver-info card mb-4">
-                    <h2>Available Assignments</h2>
+                    <h2>Welcome, ${user.name}</h2>
                     <p>Check and manage your assigned rides here.</p>
                 </div>
                 
@@ -1559,19 +1880,30 @@ class UIManager {
         const container = document.getElementById('assignments-list');
         if (!container) return;
         
+        const user = DataManager.getCurrentUser();
+        if (!user) return;
+        
         const bookings = DataManager.getBookings();
         const currentBookings = bookings.filter(b => 
             b.status === 'confirmed' && b.driverId
         );
         
-        if (currentBookings.length === 0) {
+        // Filter bookings for this driver
+        const driverBookings = currentBookings.filter(booking => {
+            const drivers = DataManager.getData(DataManager.STORAGE_KEYS.DRIVERS) || [];
+            const driver = drivers.find(d => d.id === booking.driverId);
+            return driver && driver.name === user.name;
+        });
+        
+        if (driverBookings.length === 0) {
             container.innerHTML = '<div class="alert"><p>No active assignments found.</p></div>';
             return;
         }
         
-        container.innerHTML = currentBookings.map(booking => {
+        container.innerHTML = driverBookings.map(booking => {
             const vehicle = DataManager.getVehicleById(booking.vehicleId);
             const pickupHub = DataManager.getHubById(booking.pickupHubId);
+            const dropoffHub = DataManager.getHubById(booking.dropoffHubId);
             
             return `
                 <div class="assignment-card card mb-3">
@@ -1579,9 +1911,9 @@ class UIManager {
                     <div class="assignment-details">
                         <p><strong>Vehicle:</strong> ${vehicle?.name || 'Unknown'}</p>
                         <p><strong>Pick-up:</strong> ${pickupHub?.name} on ${booking.pickupDate} at ${booking.pickupTime}</p>
-                        <p><strong>Drop-off:</strong> ${booking.dropoffDate} at ${booking.dropoffTime}</p>
+                        <p><strong>Drop-off:</strong> ${dropoffHub?.name} on ${booking.dropoffDate} at ${booking.dropoffTime}</p>
                         <p><strong>Customer Age:</strong> ${booking.userAge} years</p>
-                        <p><strong>Total Earnings:</strong> $${booking.totalPrice * 0.2}</p>
+                        <p><strong>Total Earnings:</strong> $${(booking.totalPrice * 0.2).toFixed(2)}</p>
                     </div>
                     <div class="assignment-actions">
                         <button class="btn btn-success" onclick="UIManager.acceptAssignment(${booking.id})">
@@ -1608,6 +1940,228 @@ class UIManager {
         }
     }
     
+    showLoginModal() {
+        const modalBody = document.getElementById('auth-modal-body');
+        const modal = document.getElementById('auth-modal');
+        
+        modalBody.innerHTML = `
+            <div class="auth-tabs">
+                <button class="auth-tab active" data-auth="login">Login</button>
+                <button class="auth-tab" data-auth="signup">Sign Up</button>
+            </div>
+            
+            <form id="login-form" class="auth-form">
+                <div class="form-group">
+                    <label for="login-email" class="form-label">Email</label>
+                    <input type="email" id="login-email" class="form-control" 
+                           placeholder="you@example.com" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="login-password" class="form-label">Password</label>
+                    <input type="password" id="login-password" class="form-control" 
+                           placeholder="Enter your password" required>
+                </div>
+                
+                <div class="form-options">
+                    <label class="remember-me">
+                        <input type="checkbox" id="remember-me">
+                        <span>Remember me</span>
+                    </label>
+                    <a href="#" class="forgot-password">Forgot password?</a>
+                </div>
+                
+                <button type="submit" class="btn btn-block">Login</button>
+                
+                <div class="auth-footer">
+                    <p>Don't have an account? 
+                        <button type="button" class="auth-switch" data-auth="signup">
+                            Sign up
+                        </button>
+                    </p>
+                </div>
+            </form>
+        `;
+        
+        modal.style.display = 'flex';
+        
+        // Add event listeners
+        this.setupAuthModalEvents();
+    }
+    
+    showSignupModal() {
+        const modalBody = document.getElementById('auth-modal-body');
+        const modal = document.getElementById('auth-modal');
+        
+        modalBody.innerHTML = `
+            <div class="auth-tabs">
+                <button class="auth-tab" data-auth="login">Login</button>
+                <button class="auth-tab active" data-auth="signup">Sign Up</button>
+            </div>
+            
+            <form id="signup-form" class="auth-form">
+                <div class="form-group">
+                    <label for="signup-name" class="form-label">Full Name</label>
+                    <input type="text" id="signup-name" class="form-control" 
+                           placeholder="John Doe" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="signup-email" class="form-label">Email</label>
+                    <input type="email" id="signup-email" class="form-control" 
+                           placeholder="you@example.com" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="signup-age" class="form-label">Age</label>
+                    <input type="number" id="signup-age" class="form-control" 
+                           min="16" max="100" placeholder="25" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="signup-password" class="form-label">Password</label>
+                    <input type="password" id="signup-password" class="form-control" 
+                           placeholder="Create a password" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="signup-confirm" class="form-label">Confirm Password</label>
+                    <input type="password" id="signup-confirm" class="form-control" 
+                           placeholder="Confirm your password" required>
+                </div>
+                
+                <button type="submit" class="btn btn-block">Sign Up</button>
+                
+                <div class="auth-footer">
+                    <p>Already have an account? 
+                        <button type="button" class="auth-switch" data-auth="login">
+                            Login
+                        </button>
+                    </p>
+                </div>
+            </form>
+        `;
+        
+        modal.style.display = 'flex';
+        
+        // Add event listeners
+        this.setupAuthModalEvents();
+    }
+    
+    setupAuthModalEvents() {
+        // Tab switching
+        document.querySelectorAll('.auth-tab').forEach(tab => {
+            tab.addEventListener('click', (e) => {
+                const authType = e.target.dataset.auth;
+                if (authType === 'login') {
+                    this.showLoginModal();
+                } else {
+                    this.showSignupModal();
+                }
+            });
+        });
+        
+        // Form switching
+        document.querySelectorAll('.auth-switch').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const authType = e.target.dataset.auth;
+                if (authType === 'login') {
+                    this.showLoginModal();
+                } else {
+                    this.showSignupModal();
+                }
+            });
+        });
+        
+        // Login form submission
+        const loginForm = document.getElementById('login-form');
+        if (loginForm) {
+            loginForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                this.handleLogin();
+            });
+        }
+        
+        // Signup form submission
+        const signupForm = document.getElementById('signup-form');
+        if (signupForm) {
+            signupForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                this.handleSignup();
+            });
+        }
+    }
+    
+    handleLogin() {
+        const email = document.getElementById('login-email').value;
+        const password = document.getElementById('login-password').value;
+        
+        const result = DataManager.loginUser(email, password);
+        
+        if (result.success) {
+            this.closeAuthModal();
+            this.updateUserInterface();
+            this.showToast('Login successful!', 'success');
+            
+            // Redirect to home
+            this.renderView('home');
+        } else {
+            this.showToast(result.message, 'error');
+        }
+    }
+    
+    handleSignup() {
+        const name = document.getElementById('signup-name').value;
+        const email = document.getElementById('signup-email').value;
+        const age = parseInt(document.getElementById('signup-age').value);
+        const password = document.getElementById('signup-password').value;
+        const confirm = document.getElementById('signup-confirm').value;
+        
+        // Validation
+        if (password !== confirm) {
+            this.showToast('Passwords do not match', 'error');
+            return;
+        }
+        
+        if (age < 16) {
+            this.showToast('You must be at least 16 years old', 'error');
+            return;
+        }
+        
+        const userData = {
+            name,
+            email,
+            age,
+            password,
+            role: 'user'
+        };
+        
+        const result = DataManager.registerUser(userData);
+        
+        if (result.success) {
+            // Auto login after signup
+            DataManager.setCurrentUser(result.user.id);
+            this.closeAuthModal();
+            this.updateUserInterface();
+            this.showToast('Account created successfully!', 'success');
+            this.renderView('profile');
+        } else {
+            this.showToast(result.message, 'error');
+        }
+    }
+    
+    handleLogout() {
+        DataManager.logoutUser();
+        this.updateUserInterface();
+        this.showToast('Logged out successfully', 'success');
+        this.renderView('home');
+    }
+    
+    closeAuthModal() {
+        const modal = document.getElementById('auth-modal');
+        modal.style.display = 'none';
+    }
+    
     showToast(message, type = 'info') {
         const toast = document.getElementById('notification-toast');
         const messageElement = document.getElementById('toast-message');
@@ -1631,16 +2185,6 @@ class UIManager {
         const toast = document.getElementById('notification-toast');
         if (toast) {
             toast.style.display = 'none';
-        }
-    }
-    
-    showLoginModal() {
-        // Simple login for demo purposes
-        const email = prompt('Enter email (use: user@example.com):');
-        if (email === 'user@example.com') {
-            DataManager.setCurrentUser(1);
-            this.showToast('Logged in successfully!', 'success');
-            this.renderView('profile');
         }
     }
 }

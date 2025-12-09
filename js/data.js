@@ -144,10 +144,33 @@ const SEED_DATA = {
     users: [
         {
             id: 1,
-            email: 'user@example.com',
+            email: 'admin@rento.com',
+            name: 'Admin User',
+            password: 'admin123',
+            age: 30,
+            role: 'admin',
+            bookings: [],
+            createdAt: new Date().toISOString()
+        },
+        {
+            id: 2,
+            email: 'driver@rento.com',
+            name: 'Driver User',
+            password: 'driver123',
+            age: 28,
+            role: 'user',
+            bookings: [],
+            createdAt: new Date().toISOString()
+        },
+        {
+            id: 3,
+            email: 'user@rento.com',
             name: 'Demo User',
+            password: 'user123',
             age: 25,
-            bookings: []
+            role: 'user',
+            bookings: [],
+            createdAt: new Date().toISOString()
         }
     ]
 };
@@ -332,6 +355,82 @@ function setCurrentUser(userId) {
 }
 
 /**
+ * Register a new user
+ */
+function registerUser(userData) {
+    const users = getData(STORAGE_KEYS.USERS) || [];
+    
+    // Check if user already exists
+    const existingUser = users.find(user => user.email === userData.email);
+    if (existingUser) {
+        return { success: false, message: 'User already exists' };
+    }
+    
+    // Create new user
+    const newUser = {
+        id: users.length ? Math.max(...users.map(u => u.id)) + 1 : 1,
+        ...userData,
+        role: userData.email.includes('admin') ? 'admin' : 'user',
+        createdAt: new Date().toISOString(),
+        bookings: []
+    };
+    
+    users.push(newUser);
+    saveData(STORAGE_KEYS.USERS, users);
+    
+    return { success: true, user: newUser };
+}
+
+/**
+ * Login user
+ */
+function loginUser(email, password) {
+    const users = getData(STORAGE_KEYS.USERS) || [];
+    const user = users.find(u => u.email === email && u.password === password);
+    
+    if (user) {
+        setCurrentUser(user.id);
+        return { success: true, user };
+    }
+    
+    return { success: false, message: 'Invalid email or password' };
+}
+
+/**
+ * Logout user
+ */
+function logoutUser() {
+    localStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
+    return { success: true };
+}
+
+/**
+ * Get user role
+ */
+function getUserRole() {
+    const user = getCurrentUser();
+    return user?.role || 'guest';
+}
+
+/**
+ * Check if user is admin
+ */
+function isAdmin() {
+    return getUserRole() === 'admin';
+}
+
+/**
+ * Check if user is driver
+ */
+function isDriver() {
+    const user = getCurrentUser();
+    if (!user) return false;
+    
+    const drivers = getData(STORAGE_KEYS.DRIVERS) || [];
+    return drivers.some(driver => driver.name === user.name);
+}
+
+/**
  * Calculate distance between two coordinates (Haversine formula)
  */
 function calculateDistance(lat1, lon1, lat2, lon2) {
@@ -375,6 +474,12 @@ window.DataManager = {
     cancelBooking,
     getCurrentUser,
     setCurrentUser,
+    registerUser,
+    loginUser,
+    logoutUser,
+    getUserRole,
+    isAdmin,
+    isDriver,
     calculateDistance,
     resetData,
     STORAGE_KEYS,
